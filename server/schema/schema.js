@@ -1,5 +1,7 @@
-const Project = require('../models/Project');
-const Client = require('../models/Client');
+const Project = require("../models/Project");
+const Client = require("../models/Client");
+//user needs this
+const { GraphQLResolveInfo } = require("graphql");
 
 const {
   GraphQLObjectType,
@@ -9,11 +11,22 @@ const {
   GraphQLList,
   GraphQLNonNull,
   GraphQLEnumType,
-} = require('graphql');
+} = require("graphql");
+
+// Movie Type
+const MovieType = new GraphQLObjectType({
+  name: "Movie",
+  fields: () => ({
+    title: { type: GraphQLString },
+    cod: { type: GraphQLString },
+    message: { type: GraphQLString },
+    name: { type: GraphQLString },
+  }),
+});
 
 // Project Type
 const ProjectType = new GraphQLObjectType({
-  name: 'Project',
+  name: "Project",
   fields: () => ({
     id: { type: GraphQLID },
     name: { type: GraphQLString },
@@ -30,7 +43,7 @@ const ProjectType = new GraphQLObjectType({
 
 // Client Type
 const ClientType = new GraphQLObjectType({
-  name: 'Client',
+  name: "Client",
   fields: () => ({
     id: { type: GraphQLID },
     name: { type: GraphQLString },
@@ -40,8 +53,21 @@ const ClientType = new GraphQLObjectType({
 });
 
 const RootQuery = new GraphQLObjectType({
-  name: 'RootQueryType',
+  name: "RootQueryType",
   fields: {
+    // movies: {
+    //   type: MovieType,
+    //   resolve(parent, args) {
+    //     fetch("https://swapi.dev/api/people/9")
+    //     .then((resp)=>{
+    //       console.log('resp: ', resp)
+    //       return resp.json()})
+    //     .then((data)=>{
+    //       console.log('data name: ', data.name)
+    //       return data.name;
+    //     })
+    //   },
+    // },
     projects: {
       type: new GraphQLList(ProjectType),
       resolve(parent, args) {
@@ -68,12 +94,64 @@ const RootQuery = new GraphQLObjectType({
         return Client.findById(args.id);
       },
     },
+    movie: {
+      type: MovieType,
+      args: { id: { type: GraphQLID } },
+      async resolve(parent, args, context, info) {
+        try {
+          const response = await fetch(
+            `https://swapi.dev/api/films/${args.id}`
+            //https://api.openweathermap.org/data/2.5/weather?q=alaska&appid=6e1a0f5534e59feddcb2739dab099610
+          );
+          const film = await response.json();
+          //npm-function(response,film)/////////////////////////////////////////////////////
+          const that = this;
+          const responseObj = {
+            parentNode: info.fieldName,
+            originResp: film,
+            originRespStatus: response.status,
+            originRespMessage: response.statusText,
+          };
+
+          console.log("RESPONSE OBJECT: ", responseObj);
+
+          fetch("http://localhost:3000/originalRespReceiver", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              // 'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: JSON.stringify(responseObj),
+          })
+            .then((data) => {
+              return data.json();
+            })
+            .then((resp) => {
+              console.log("originresp: ", resp);
+            });
+          /////////////////////////////////////////////////////////////////////////////
+
+          // const mock = await (
+          //   await fetch(
+          //https://api.openweathermap.org/data/2.5/weather?q=asjdhfbjh&appid=6e1a0f5534e59feddcb2739dab099610
+          //https://swapi.dev/api/films/9000
+          //     `http://localhost:5001/errormock`
+          //   )
+          // ).json();
+          // console.log('mock: ', mock)
+          return film;
+        } catch (err) {
+          console.error("Error fetching movie:", err);
+          throw new Error("Unable to fetch movie");
+        }
+      },
+    },
   },
 });
 
 // Mutations
 const mutation = new GraphQLObjectType({
-  name: 'Mutation',
+  name: "Mutation",
   fields: {
     // Add a client
     addClient: {
@@ -117,14 +195,14 @@ const mutation = new GraphQLObjectType({
         description: { type: GraphQLNonNull(GraphQLString) },
         status: {
           type: new GraphQLEnumType({
-            name: 'ProjectStatus',
+            name: "ProjectStatus",
             values: {
-              new: { value: 'Not Started' },
-              progress: { value: 'In Progress' },
-              completed: { value: 'Completed' },
+              new: { value: "Not Started" },
+              progress: { value: "In Progress" },
+              completed: { value: "Completed" },
             },
           }),
-          defaultValue: 'Not Started',
+          defaultValue: "Not Started",
         },
         clientId: { type: GraphQLNonNull(GraphQLID) },
       },
@@ -158,11 +236,11 @@ const mutation = new GraphQLObjectType({
         description: { type: GraphQLString },
         status: {
           type: new GraphQLEnumType({
-            name: 'ProjectStatusUpdate',
+            name: "ProjectStatusUpdate",
             values: {
-              new: { value: 'Not Started' },
-              progress: { value: 'In Progress' },
-              completed: { value: 'Completed' },
+              new: { value: "Not Started" },
+              progress: { value: "In Progress" },
+              completed: { value: "Completed" },
             },
           }),
         },
