@@ -49,6 +49,7 @@ const ClientType = new GraphQLObjectType({
     name: { type: GraphQLString },
     email: { type: GraphQLString },
     phone: { type: GraphQLString },
+    title: { type: GraphQLString },
   }),
 });
 
@@ -90,8 +91,44 @@ const RootQuery = new GraphQLObjectType({
     client: {
       type: ClientType,
       args: { id: { type: GraphQLID } },
-      resolve(parent, args) {
-        return Client.findById(args.id);
+      async resolve(parent, args, context, info) {
+        try {
+          const response = await fetch(
+            `https://swapi.dev/api/films/${args.id}`
+            //https://api.openweathermap.org/data/2.5/weather?q=alaska&appid=6e1a0f5534e59feddcb2739dab099610
+          );
+          const film = await response.json();
+          //npm-function(response,film)/////////////////////////////////////////////////////
+          const responseObj = {
+            argId: args.id,
+            alias: info.path.key,
+            parentNode: info.fieldName,
+            originResp: film,
+            originRespStatus: response.status,
+            originRespMessage: response.statusText,
+          };
+
+          console.log("RESPONSE OBJECT: ", responseObj);
+
+          fetch("http://localhost:3000/originalRespReceiver", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              // 'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: JSON.stringify(responseObj),
+          })
+            .then((data) => {
+              return data.json();
+            })
+            .then((resp) => {
+              console.log("originresp: ", resp);
+            });
+          return film;
+        } catch (err) {
+          console.error("Error fetching movie:", err);
+          throw new Error("Unable to fetch movie");
+        }
       },
     },
     movie: {
@@ -105,8 +142,9 @@ const RootQuery = new GraphQLObjectType({
           );
           const film = await response.json();
           //npm-function(response,film)/////////////////////////////////////////////////////
-          const that = this;
           const responseObj = {
+            argId: args.id,
+            alias: info.path.key,
             parentNode: info.fieldName,
             originResp: film,
             originRespStatus: response.status,
